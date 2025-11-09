@@ -32,9 +32,6 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
-      // User is automatically signed in after successful login
-      // AuthWrapper will handle navigation to HomeScreen
-      // No need to navigate manually as StreamBuilder will update
     } on FirebaseAuthException catch (e) {
       String message;
       switch (e.code) {

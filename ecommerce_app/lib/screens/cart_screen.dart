@@ -68,7 +68,7 @@ class _CartScreenState extends State<CartScreen> {
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   Text(
-                    '₱${cart.totalPrice.toStringAsFixed(2)}',
+                    '₱${cart.totalPriceWithVat.toStringAsFixed(2)}',
                     style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                 ],

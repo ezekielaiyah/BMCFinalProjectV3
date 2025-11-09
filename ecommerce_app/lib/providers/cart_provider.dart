@@ -4,26 +4,25 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
 class CartProvider with ChangeNotifier {
-
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   String? _userId;
   List<CartItem> _items = [];
   StreamSubscription<User?>? _authSubscription;
 
-      CartProvider() {
-        print('CartProvider created');
-        initializeAuthListener();
-      }
-      void initializeAuthListener() {
-        print('CartProvider auth listener initialized');
-        _authSubscription = _auth.authStateChanges().listen((User? user) {
+  CartProvider() {
+    print('CartProvider created.');
+  }
+
+  void initializeAuthListener() {
+    print('CartProvider auth listener initialized');
+    _authSubscription = _auth.authStateChanges().listen((User? user) {
       if (user == null) {
-        print('User Logged out, clearing cart');
+        print('User logged out, clearing cart');
         _userId = null;
         _items = [];
       } else {
-        print('User Logged in: ${user.uid}, Fetching cart...');
+        print('User logged in: ${user.uid}, Fetching cart...');
         _userId = user.uid;
         _fetchCart();
       }
@@ -39,7 +38,6 @@ class CartProvider with ChangeNotifier {
 
       if (doc.exists && doc.data()!['cartItems'] != null) {
         final List<dynamic> cartData = doc.data()!['cartItems'];
-
         _items = cartData.map((item) => CartItem.fromJson(item)).toList();
         print('Cart fetched successfully: ${_items.length} items');
       } else {
@@ -68,12 +66,12 @@ class CartProvider with ChangeNotifier {
     }
   }
 
-  void addItem(String id, String name, double price) {
+  void addItem(String id, String name, double price, int quantity) {
     var index = _items.indexWhere((item) => item.id == id);
     if (index != -1) {
-      _items[index].quantity += 1;
+      _items[index].quantity += quantity;
     } else {
-      _items.add(CartItem(id: id, name: name, price: price));
+      _items.add(CartItem(id: id, name: name, price: price, quantity: quantity));
     }
     _saveCart();
     notifyListeners();
@@ -84,6 +82,7 @@ class CartProvider with ChangeNotifier {
     _saveCart();
     notifyListeners();
   }
+
   Future<void> placeOrder() async {
     if (_userId == null || _items.isEmpty) {
       throw Exception('Cart is empty or user is not logged in');
@@ -91,11 +90,16 @@ class CartProvider with ChangeNotifier {
 
     try {
       final List<Map<String, dynamic>> cartData = _items.map((item) => item.toJson()).toList();
-      final double total = totalPrice;
+      final double sub = subtotal;
+      final double v = vat;
+      final double total = totalPriceWithVat;
       final int count = itemCount;
+
       await _firestore.collection('orders').add({
         'userId': _userId,
         'items': cartData,
+        'subtotal': sub,
+        'vat': v,
         'totalPrice': total,
         'itemCount': count,
         'status': 'Pending',
@@ -121,22 +125,27 @@ class CartProvider with ChangeNotifier {
     }
     notifyListeners();
   }
+
   List<CartItem> get items => _items;
 
   int get itemCount {
-    int total = 0;
-    for (var item in _items) {
-      total += item.quantity;
-    }
-    return total;
+    return _items.fold(0, (total, item) => total + item.quantity);
   }
 
-  double get totalPrice {
+  double get subtotal {
     double total = 0.0;
     for (var item in _items) {
       total += item.price * item.quantity;
     }
     return total;
+  }
+
+  double get vat {
+    return subtotal * 0.12;
+  }
+
+  double get totalPriceWithVat {
+    return subtotal + vat;
   }
 
   @override
@@ -166,7 +175,8 @@ class CartItem {
       'price': price,
       'quantity': quantity,
     };
-}
+  }
+
   factory CartItem.fromJson(Map<String, dynamic> json) {
     return CartItem(
       id: json['id'],
